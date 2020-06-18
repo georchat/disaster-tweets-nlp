@@ -48,9 +48,9 @@ def ingest_data(datadir=DATA_DIR, filename="tweets.csv"):
     ## load csv file from data directory
     tweets = pd.read_csv(os.path.join(datadir,filename))
     
-    ## quality checks
-    print("---------------------------")
-    
+    ## dataframe structure
+    print("...dataset of {} rows and {} columns".format(tweets.shape[0], tweets.shape[1]))
+        
     ## check duplicates
     is_duplicate = tweets.duplicated(subset=["id"])
     print("...number of duplicates:", len(tweets[is_duplicate]))
@@ -60,9 +60,8 @@ def ingest_data(datadir=DATA_DIR, filename="tweets.csv"):
     percent = (tweets.isnull().sum()/tweets.isnull().count()).sort_values(ascending=False)
     missing_data = pd.concat([total, percent], axis=1, keys=['Total', 'Percent'])
     print("...missing values: \n {}".format(missing_data.head()))
-    print("---------------------------")
     
-    return tweets
+    return tweets.location.values, tweets.text.values, tweets.target.values
 
 def summarize_data(corpus):
     """
@@ -101,10 +100,10 @@ if __name__ == "__main__":
     run_start = time.time()
     
     ## load tweets
-    tweets = ingest_data()
+    location, tweets, target = ingest_data()
     
     ## summarize data
-    summarize_data(tweets.text.values.tolist())
+    summarize_data(tweets.tolist())
     
     print("METADATA")
     m, s = divmod(time.time()-run_start,60)
