@@ -21,6 +21,7 @@ sdist/
 var/
 wheels/
 playground/
+models/
 *.egg-info/
 .installed.cfg
 *.egg
