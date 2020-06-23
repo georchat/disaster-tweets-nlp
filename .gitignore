@@ -21,7 +21,6 @@ sdist/
 var/
 wheels/
 playground/
-models/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -107,4 +106,8 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# project specifics dirs
+models/
+my_tfhub_cache/
 

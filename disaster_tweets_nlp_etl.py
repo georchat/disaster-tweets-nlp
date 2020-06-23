@@ -46,12 +46,12 @@ def lemmatize_document(doc, stop_words=None):
     return " ".join([token for token in tokens if token not in stop_words])
 
 
-def etl(filename=SAVED_CORPUS, clean=False):
+def etl(clean=False, filename=SAVED_CORPUS, data_path=DATA_DIR, stop_list=STOPLIST):
     """
     load, clean, split and save the dataset
     """
     
-    saved_corpus = os.path.join(DATA_DIR, filename)
+    saved_corpus = os.path.join(data_path, filename)
     
     if (not os.path.exists(saved_corpus) or clean):
         
@@ -63,19 +63,19 @@ def etl(filename=SAVED_CORPUS, clean=False):
         target = tweets.target.values
         
         ## lemmatize
-        print("etl")
+        print("ETL")
         time_start = time.time()
-        processed_corpus = [lemmatize_document(tweet, STOPLIST) for tweet in corpus]
+        processed_corpus = [lemmatize_document(tweet, stop_list) for tweet in corpus]
         
-        ## split the dataset into training and validation set
-        train_data, valid_data, y_train, y_valid = train_test_split(processed_corpus, target,
-                                                                    test_size=0.25, stratify=target, random_state=42)
+        ## split the dataset into training and test set
+        train_data, test_data, y_train, y_test = train_test_split(processed_corpus, target,
+                                                                  test_size=0.2, stratify=target, random_state=42)
         print("---------------------------")
-        print("training", sorted(Counter(y_train).items()))
-        print("validation", sorted(Counter(y_valid).items()))
+        print("train", sorted(Counter(y_train).items()))
+        print("test", sorted(Counter(y_test).items()))
         print("---------------------------")
         
-        args = {'train_data':train_data,"y_train":y_train,"valid_data":valid_data,"y_valid":y_valid}
+        args = {'train_data':train_data,"y_train":y_train,"test_data":test_data,"y_test":y_test}
         np.savez_compressed(saved_corpus,**args)
         print("process time", time.strftime('%H:%M:%S', time.gmtime(time.time()-time_start)))
         
@@ -83,19 +83,19 @@ def etl(filename=SAVED_CORPUS, clean=False):
         print("loading {} from file".format(saved_corpus))
         npz = np.load(saved_corpus)
         train_data, y_train = npz['train_data'], npz["y_train"]
-        valid_data, y_valid = npz['valid_data'], npz["y_valid"]
+        test_data, y_test = npz['test_data'], npz["y_test"]
     
-    return train_data, y_train, valid_data, y_valid
+    return train_data, y_train, test_data, y_test
 
 if __name__ == "__main__":
     
     run_start = time.time()
     
     ## extract, transform load
-    train_data, y_train, valid_data, y_valid = etl(clean=True)
+    train_data, y_train, test_data, y_test = etl(clean=True)
     
     ## summarize data
-    summarize_data(np.concatenate((train_data,valid_data),axis=0), preprocessing=False)
+    summarize_data(np.concatenate((train_data,test_data),axis=0), preprocessing=False)
     
     print("METADATA")
     m, s = divmod(time.time()-run_start,60)

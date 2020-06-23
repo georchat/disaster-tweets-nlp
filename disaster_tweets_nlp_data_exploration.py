@@ -43,7 +43,7 @@ def ingest_data(datadir=DATA_DIR, filename="tweets.csv"):
     ingest tweets dataset
     """
     
-    print("Ingesting data")
+    print("Ingesting Data")
     
     ## load csv file from data directory
     tweets = pd.read_csv(os.path.join(datadir,filename))
