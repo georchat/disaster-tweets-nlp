@@ -12,8 +12,8 @@ from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 from sklearn.model_selection import train_test_split
 
 ## imports from process model scripts
-from disaster_tweets_nlp_data_exploration import ingest_data, summarize_data
-from disaster_tweets_nlp_data_exploration import DATA_DIR
+from risk_tweets_nlp_data_exploration import ingest_data, summarize_data
+from risk_tweets_nlp_data_exploration import DATA_DIR
 
 STOPLIST = ENGLISH_STOP_WORDS
 STOPLIST = set(list(STOPLIST) + ["foo"])

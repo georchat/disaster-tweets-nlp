@@ -89,7 +89,7 @@ def summarize_data(corpus, preprocessing=True):
     ax2 = fig.add_subplot(122)
     
     sns.distplot(df_doc_size, ax=ax1)
-    ax1.set_title("Document Sizes")
+    ax1.set_title("Tweets Sizes")
     
     sns.distplot(df_tokens.value_counts().values, ax=ax2)
     ax2.set_title("Tokens Counts")

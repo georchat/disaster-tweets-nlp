@@ -20,10 +20,10 @@ from sklearn.metrics import roc_curve, f1_score, roc_auc_score
 from sklearn.metrics import classification_report
 from sklearn.model_selection import cross_val_score
 
-from disaster_tweets_nlp_etl import etl
-from disaster_tweets_nlp_data_exploration import save_fig
-from disaster_tweets_nlp_feature_engineering import MODEL_DIR
-from disaster_tweets_nlp_feature_engineering import SAVED_MODEL as SAVED_PIPE
+from risk_tweets_nlp_etl import etl
+from risk_tweets_nlp_data_exploration import save_fig
+from risk_tweets_nlp_feature_engineering import MODEL_DIR
+from risk_tweets_nlp_feature_engineering import SAVED_MODEL as SAVED_PIPE
 
 
 RS = 42
@@ -38,18 +38,18 @@ os.environ["TFHUB_CACHE_DIR"] = TFHUB_CACHE_DIR
 def train_ml(train_data, valid_data, y_train, y_valid, model_path=MODEL_DIR, pipe_name=SAVED_PIPE, 
              model_name=SKLEARN_MODEL, rs=RS):
     """
-    train classifiers from sklearn
+    train machine learning classifiers
     """
     
-    print("...training sklearn classifiers")
+    print("...training machine learning classifiers")
     
     ## load transformation pipeline
     feature_engineer = joblib.load(os.path.join(model_path, pipe_name))
     
     ## compare different classifiers
     rd = RidgeClassifier()
-    sg = SGDClassifier(tol=1e-3, max_iter=1000)
-    rf = RandomForestClassifier(random_state=rs, min_samples_split=250)
+    sg = SGDClassifier(tol=1e-3, max_iter=1000,loss="modified_huber")
+    rf = RandomForestClassifier(random_state=rs)
     gb = GradientBoostingClassifier(random_state=rs)
 
     models, scores = {}, {}
@@ -57,15 +57,14 @@ def train_ml(train_data, valid_data, y_train, y_valid, model_path=MODEL_DIR, pip
         pipe = clone(feature_engineer)
         pipe.steps.append(("clf",clf))
         models[name] = pipe
-        scores[name] = cross_val_score(pipe, train_data, y_train, cv=5, scoring="f1")
+        scores[name] = cross_val_score(pipe, train_data, y_train, cv=4, scoring="f1")
         
-    
     ## plot cross validation scores
     plt.figure(figsize=(10, 5))
-    plt.plot([1]*5, scores["rd"], ".")
-    plt.plot([2]*5, scores["rf"], ".")
-    plt.plot([3]*5, scores["sg"], ".")
-    plt.plot([4]*5, scores["gb"], ".")
+    plt.plot([1]*4, scores["rd"], ".")
+    plt.plot([2]*4, scores["rf"], ".")
+    plt.plot([3]*4, scores["sg"], ".")
+    plt.plot([4]*4, scores["gb"], ".")
     plt.boxplot([scores["rd"],scores["rf"],scores["sg"],scores["gb"]],
                 labels=("RidgeClassifier","RFClassifier", "SGDClassifier","GBClassifier"))
     plt.ylabel("f1-scores", fontsize=14)
@@ -74,19 +73,23 @@ def train_ml(train_data, valid_data, y_train, y_valid, model_path=MODEL_DIR, pip
     ## Tune hyper-parameters
     time_start = time.time()
     param_grid = {
-        'counter__ngram_range':[(1,1),(1,2),(2,2)],
-        'counter__max_features':[1000,5000,10000],
-        'clf__n_estimators':[50,70,100],
+        'counter__max_df':[0.4,0.6,0.8],
+        'counter__max_features':[2500, 5000, 10000],
+        'clf__penalty':["l2", "l1", "elasticnet"]
     }
 
-    grid = GridSearchCV(models["rf"], param_grid=param_grid, cv=3, n_jobs=-1)
+    grid = GridSearchCV(models["sg"], param_grid=param_grid, cv=3, n_jobs=-1)
     grid.fit(train_data, y_train)
+    #print("train time", time.strftime('%H:%M:%S', time.gmtime(time.time()-time_start)))
 
     ## save model
     saved_model = os.path.join(model_path,model_name)
     joblib.dump(grid, saved_model)
-    print(grid.best_params_)
-    print("train time", time.strftime('%H:%M:%S', time.gmtime(time.time()-time_start)))
+    print("best parameters: {}".format(grid.best_params_))
+    
+    ## evaluation on the validation set
+    y_pred = grid.predict(valid_data)
+    #print('validation f1-score:{}'.format(f1_score(y_valid, y_pred)))
     
     
 def train_deep(train_data, valid_data, y_train, y_valid, model_path=MODEL_DIR, pipe_name=SAVED_PIPE, 
@@ -113,13 +116,13 @@ def train_deep(train_data, valid_data, y_train, y_valid, model_path=MODEL_DIR, p
     model.add(keras.layers.InputLayer(input_shape=X_train.shape[1]))
     model.add(keras.layers.Dense(64, activation="relu"))
     model.add(keras.layers.Dense(128, activation="relu"))
-    model.add(keras.layers.Dropout(0.25))
+    model.add(keras.layers.Dropout(0.2))
     model.add(keras.layers.Dense(1, activation="sigmoid"))
     model.compile(loss="binary_crossentropy", optimizer="adam", metrics=[tf.keras.metrics.AUC()])
     model.summary()
     
     ## training
-    history = model.fit(X_train, y_train, epochs=10, validation_data=(X_valid, y_valid),
+    history = model.fit(X_train, y_train, epochs=10, validation_data=(X_valid, y_valid), verbose=0,
                         callbacks=[keras.callbacks.EarlyStopping(patience=3,restore_best_weights=True)])
 
     ## save dense model
@@ -127,7 +130,7 @@ def train_deep(train_data, valid_data, y_train, y_valid, model_path=MODEL_DIR, p
     model.save(saved_model)
     
     ## evaluate on the validation set
-    model.evaluate(X_valid,y_valid)
+    #model.evaluate(X_valid,y_valid)
     
     
 def train_embed(train_data, valid_data, y_train, y_valid, model_path=MODEL_DIR, model_name=EMB_MODEL, rs=RS):
@@ -146,13 +149,13 @@ def train_embed(train_data, valid_data, y_train, y_valid, model_path=MODEL_DIR, 
     model.add(hub.KerasLayer("https://tfhub.dev/google/tf2-preview/nnlm-en-dim50/1",
                              dtype=tf.string, input_shape=[], output_shape=[50], trainable=True))
     model.add(keras.layers.Dense(128, activation="relu"))
-    model.add(keras.layers.Dropout(0.25))
+    model.add(keras.layers.Dropout(0.2))
     model.add(keras.layers.Dense(1, activation="sigmoid"))
     model.compile(loss="binary_crossentropy", optimizer="adam", metrics=[tf.keras.metrics.AUC()])
     model.summary()
     
     ## training
-    history = model.fit(train_data, y_train, epochs=10,validation_data=(valid_data, y_valid),
+    history = model.fit(train_data, y_train, epochs=10,validation_data=(valid_data, y_valid), verbose=0,
                         callbacks=[keras.callbacks.EarlyStopping(patience=3,restore_best_weights=True)])
 
     ## save model
@@ -160,7 +163,7 @@ def train_embed(train_data, valid_data, y_train, y_valid, model_path=MODEL_DIR, 
     model.save(saved_model)
     
     ## evaluate on the validation set
-    model.evaluate(valid_data,y_valid)
+    #model.evaluate(valid_data,y_valid)
     
     
 def plot_roc_curve(fpr, tpr, label=None):
@@ -180,7 +183,6 @@ def model_evaluation(input_data, target, set_name, model_path=MODEL_DIR, sklearn
     evaluate the three models
     """
     
-    print("------------------------------")
     print("Model Evaluation on the {} Set".format(set_name.upper()))
     
     ## load trained models
@@ -196,7 +198,6 @@ def model_evaluation(input_data, target, set_name, model_path=MODEL_DIR, sklearn
     
     ## calculate scores
     clf_scores = clf.predict_proba(input_data)[:,1]
-    #clf_scores = clf.predict(input_data).ravel()
     dnn_scores = dnn.predict(X).ravel()
     emb_scores = emb.predict(input_data).ravel()
     
@@ -212,21 +213,23 @@ def model_evaluation(input_data, target, set_name, model_path=MODEL_DIR, sklearn
     
     ## plot roc curves
     plt.figure(figsize=(8, 6))
-    plt.plot(clf_fpr, clf_tpr, 'r--', label='RNF')
+    plt.plot(clf_fpr, clf_tpr, 'r--', label='SGD')
     plt.plot(dnn_fpr, dnn_tpr, 'g--', label='DNN')
     plot_roc_curve(emb_fpr, emb_tpr, "EMB")
     plt.legend(loc='lower right')
-    save_fig("plot_curves_{}_set".format(set_name))
+    plt.title("{} ROC Curves".format(set_name.upper()))
+    save_fig("plot_curves_{}_set".format(set_name.lower()))
     
     ## print classification report
-    for name, scores, y_pred in zip(["Random Forest","DNN","EmbedDNN"],
+    for name, scores, y_pred in zip(["SGD","DNN","EmbedDNN"],
                                     [clf_scores,dnn_scores,emb_scores],
                                     [clf_pred,dnn_pred,emb_pred]):
         print(name.upper())
         print(classification_report(target, y_pred))
-        print('ROC AUC:', roc_auc_score(target, scores))
-        print('f1-score:{}'.format(f1_score(target, y_pred)))
+        #print('ROC AUC:', roc_auc_score(target, scores))
+        print('f1-score:{}'.format(round(f1_score(target, y_pred),2)))
     
+    print("_________________________________________________________________")
     
 def model_train(train_data, y_train, rs=RS):
     """
@@ -251,9 +254,6 @@ def model_train(train_data, y_train, rs=RS):
     
     ## train deep classifier with pretrained embeddings
     train_embed(train_data, valid_data, y_train, y_valid)
-    
-    ## model evaluation on train set
-    model_evaluation(train_data, y_train, set_name="train")  
     
     ## model evaluation on validation set
     model_evaluation(valid_data, y_valid, set_name="valid")  

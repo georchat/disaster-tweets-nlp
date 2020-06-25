@@ -25,9 +25,9 @@ plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=LARGE_SIZE)   # fontsize of the figure title
 
 ## imports from process model scripts
-from disaster_tweets_nlp_etl import etl
-from disaster_tweets_nlp_data_exploration import save_fig
-from disaster_tweets_nlp_data_exploration import DATA_DIR
+from risk_tweets_nlp_etl import etl
+from risk_tweets_nlp_data_exploration import save_fig
+from risk_tweets_nlp_data_exploration import DATA_DIR
 
 MODEL_DIR = os.path.join(".","models")
 SAVED_MODEL = "my_sklearn_pipe.joblib"
@@ -78,8 +78,8 @@ def create_feature_visualizations(model_path=MODEL_DIR, model_name=SAVED_MODEL):
     
     ## create 2D plot
     plt.figure(figsize=(10,8))
-    plt.plot(X_2D[:, 0][y_train==1], X_2D[:, 1][y_train==1], "ro", label="risk")
-    plt.plot(X_2D[:, 0][y_train==0], X_2D[:, 1][y_train==0], "bo", label="no risk")
+    plt.plot(X_2D[:, 0][y_train==1], X_2D[:, 1][y_train==1], "ro", label="real")
+    plt.plot(X_2D[:, 0][y_train==0], X_2D[:, 1][y_train==0], "bo", label="no real")
     plt.axis('off')
     plt.legend(loc="upper left", fontsize=14)
     save_fig("tsne_visualization")

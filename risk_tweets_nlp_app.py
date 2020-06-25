@@ -7,6 +7,8 @@ import socket
 import json
 import os
 
+from risk_tweets_nlp_etl import lemmatize_document, STOPLIST
+
 KERAS_MODEL = "my_keras_emb.h5"
 MODEL_DIR = os.path.join(".","models")
 
@@ -27,8 +29,9 @@ def predict():
         return jsonify([])
 
     query = request.json["data"]
-    y_pred = model.predict_classes(query)
+    processed_query = [lemmatize_document(tweet, STOPLIST) for tweet in query]
     
+    y_pred = model.predict_classes(processed_query)
     return(jsonify(y_pred.tolist()))
             
 if __name__ == '__main__':
